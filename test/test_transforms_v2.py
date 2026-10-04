@@ -808,6 +808,42 @@ class TestResize:
             check_scripted_vs_eager=not isinstance(size, int),
         )
 
+    def test_keypoints_resize_commutes_with_flips(self):
+        canvas_size = (5, 7)
+        output_size = [10, 21]
+        keypoints = tv_tensors.KeyPoints(
+            [[0.0, 0.0], [2.25, 3.5], [6.0, 4.0]],
+            canvas_size=canvas_size,
+        )
+
+        resized, resized_canvas = F.resize_keypoints(
+            keypoints,
+            size=output_size,
+            canvas_size=canvas_size,
+        )
+
+        horizontal_then_resize, _ = F.resize_keypoints(
+            F.horizontal_flip_keypoints(keypoints, canvas_size),
+            size=output_size,
+            canvas_size=canvas_size,
+        )
+        resize_then_horizontal = F.horizontal_flip_keypoints(
+            resized,
+            resized_canvas,
+        )
+        torch.testing.assert_close(horizontal_then_resize, resize_then_horizontal)
+
+        vertical_then_resize, _ = F.resize_keypoints(
+            F.vertical_flip_keypoints(keypoints, canvas_size),
+            size=output_size,
+            canvas_size=canvas_size,
+        )
+        resize_then_vertical = F.vertical_flip_keypoints(
+            resized,
+            resized_canvas,
+        )
+        torch.testing.assert_close(vertical_then_resize, resize_then_vertical)
+
     @pytest.mark.parametrize("make_mask", [make_segmentation_mask, make_detection_masks])
     @pytest.mark.parametrize(
         "interpolation",
