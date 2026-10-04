@@ -450,7 +450,10 @@ def resize_keypoints(
     w_ratio = new_width / old_width
     h_ratio = new_height / old_height
     ratios = torch.tensor([w_ratio, h_ratio], device=keypoints.device)
-    keypoints = keypoints.mul(ratios).to(keypoints.dtype)
+    # KeyPoints use integer pixel centers: coordinate 0 is the center of the
+    # first pixel. Resize in the continuous half-pixel frame, then convert back
+    # to that convention. This keeps resize consistent with keypoint flips.
+    keypoints = keypoints.add(0.5).mul(ratios).sub_(0.5).to(keypoints.dtype)
 
     return keypoints, (new_height, new_width)
 
