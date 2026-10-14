@@ -334,16 +334,41 @@ class Kitti2015Stereo(StereoMatchingDataset):
         verify_str_arg(split, "split", valid_values=("train", "test"))
 
         root = Path(root) / "Kitti2015" / (split + "ing")
-        left_img_pattern = str(root / "image_2" / "*.png")
-        right_img_pattern = str(root / "image_3" / "*.png")
-        self._images = self._scan_pairs(left_img_pattern, right_img_pattern)
+        # Each KITTI scene has _10 and _11 input frames, but only _10 is
+        # associated with ground-truth disparity.  Glob-sorting all frames
+        # accidentally pairs _11 images with _10 disparities (issue #7128).
+        left_img_pattern = str(root / "image_2" / "*_10.png")
+        right_img_pattern = str(root / "image_3" / "*_10.png")
+        images = self._scan_pairs(left_img_pattern, right_img_pattern)
+
+        # Validate scene identity, not only equal file counts and sorted order.
+        # A missing scene in one camera can otherwise shift labels silently.
+        images_by_name = {}
+        for image_left, image_right in images:
+            name = Path(image_left).name
+            if name != Path(image_right).name:
+                raise ValueError(f"Different left/right KITTI2015 image IDs: {name} vs {Path(image_right).name}")
+            images_by_name[name] = (image_left, image_right)
 
         if split == "train":
             left_disparity_pattern = str(root / "disp_occ_0" / "*.png")
             right_disparity_pattern = str(root / "disp_occ_1" / "*.png")
             self._disparities = self._scan_pairs(left_disparity_pattern, right_disparity_pattern)
+            # Annotations determine the dataset's supervised sample count.
+            # Every annotated sample must have corresponding left/right images.
+            self._images = []
+            for left_disparity, right_disparity in self._disparities:
+                name = Path(left_disparity).name
+                if name != Path(right_disparity).name:
+                    raise ValueError(
+                        f"Different left/right KITTI2015 disparity IDs: {name} vs {Path(right_disparity).name}"
+                    )
+                if name not in images_by_name:
+                    raise ValueError(f"KITTI2015 disparity {name} has no matching stereo image pair")
+                self._images.append(images_by_name[name])
         else:
-            self._disparities = list((None, None) for _ in self._images)
+            self._images = images
+            self._disparities = [(None, None) for _ in self._images]
 
     def _read_disparity(self, file_path: str) -> tuple[Optional[np.ndarray], None]:
         # test split has no disparity maps
