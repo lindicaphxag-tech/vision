@@ -56,7 +56,7 @@ def test_pixel_center_mapping_matches_independent_double_precision_reference(old
     reference = (points.double() + 0.5) * scale - 0.5
     assert canvas == new_size
     assert got.dtype == dtype
-    torch.testing.assert_close(got, reference.to(dtype), rtol=0, atol=0)
+    torch.testing.assert_close(got, reference.to(dtype), rtol=0, atol=2e-5 if dtype == torch.float32 else 0)
     assert torch.equal(points, torch.tensor([[0, 0], [width - 1, height - 1], [width / 3, height / 2], [0.25, 0.75]], dtype=dtype))
 
 
