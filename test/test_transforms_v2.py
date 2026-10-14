@@ -965,10 +965,12 @@ class TestResize:
         if (old_height, old_width) == (new_height, new_width):
             return keypoints
 
+        sx = new_width / old_width
+        sy = new_height / old_height
         affine_matrix = np.array(
             [
-                [new_width / old_width, 0, 0],
-                [0, new_height / old_height, 0],
+                [sx, 0, (sx - 1) / 2],
+                [0, sy, (sy - 1) / 2],
             ],
         )
 
