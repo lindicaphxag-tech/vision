@@ -447,10 +447,19 @@ def resize_keypoints(
     if (new_height, new_width) == (old_height, old_width):
         return keypoints, canvas_size
 
-    w_ratio = new_width / old_width
-    h_ratio = new_height / old_height
-    ratios = torch.tensor([w_ratio, h_ratio], device=keypoints.device)
-    keypoints = keypoints.mul(ratios).to(keypoints.dtype)
+    # KeyPoints use integer-centered pixel coordinates, as witnessed by the
+    # horizontal / vertical flip kernels (W - 1 - x and H - 1 - y). In contrast,
+    # resize_image uses align_corners=False, mapping continuous pixel centers:
+    # (x + 0.5) * scale - 0.5. Origin-only scaling introduced a systematic
+    # half-pixel shift and did not commute with flipping.
+    #
+    # Compute in at least float32 to avoid rounding the 0.5 offset away in
+    # float16/bfloat16 and preserve fp64 inputs without precision loss.
+    calculation_dtype = torch.float64 if keypoints.dtype == torch.float64 else torch.float32
+    ratios = torch.tensor(
+        [new_width / old_width, new_height / old_height], device=keypoints.device, dtype=calculation_dtype
+    )
+    keypoints = ((keypoints.to(calculation_dtype) + 0.5) * ratios - 0.5).to(keypoints.dtype)
 
     return keypoints, (new_height, new_width)
 
