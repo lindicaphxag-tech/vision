@@ -456,7 +456,9 @@ def resize_keypoints(
     # Compute in at least float32 to avoid rounding the 0.5 offset away in
     # float16/bfloat16 and preserve fp64 inputs without precision loss.
     calculation_dtype = torch.float64 if keypoints.dtype == torch.float64 else torch.float32
-    ratios = torch.tensor([new_width / old_width, new_height / old_height], device=keypoints.device, dtype=calculation_dtype)
+    ratios = torch.tensor(
+        [new_width / old_width, new_height / old_height], device=keypoints.device, dtype=calculation_dtype
+    )
     keypoints = ((keypoints.to(calculation_dtype) + 0.5) * ratios - 0.5).to(keypoints.dtype)
 
     return keypoints, (new_height, new_width)
