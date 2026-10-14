@@ -1,0 +1,51 @@
+name: Fork-only KITTI2015 actual torchvision regression
+on:
+  push:
+    branches:
+      - fix/kitti2015-stereo-disparity-pairing-20261014
+    paths:
+      - torchvision/datasets/_stereo_matching.py
+      - test/test_kitti2015_disparity_alignment.py
+      - .github/workflows/fork-kitti2015-pairing-smoke.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kitti2015:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU PyTorch wheel and independent torchvision baseline
+        run: |
+          python -m pip install torch torchvision pytest pillow numpy
+      - name: Run real newly edited Kitti2015Stereo class against synthetic KITTI data
+        shell: bash
+        run: |
+          export FORK_CHECKOUT="$PWD"
+          cd /tmp
+          python - <<'PY'
+          import importlib.util
+          import os
+          from pathlib import Path
+          import sys
+          checkout=Path(os.environ["FORK_CHECKOUT"])
+          sys.path=[p for p in sys.path if not p or Path(p).resolve()!=checkout]
+          import torchvision
+          import torchvision.datasets
+          # The wheel supplies its compiled C++ operators and package imports;
+          # the class under test is always the actual modified checkout source.
+          name="torchvision.datasets._stereo_matching"
+          source=checkout/"torchvision/datasets/_stereo_matching.py"
+          spec=importlib.util.spec_from_file_location(name,str(source))
+          module=importlib.util.module_from_spec(spec)
+          sys.modules[name]=module
+          spec.loader.exec_module(module)
+          torchvision.datasets.Kitti2015Stereo=module.Kitti2015Stereo
+          print("TESTED_EDITED_MODULE",source)
+          import pytest
+          raise SystemExit(pytest.main(["-q",str(checkout/"test/test_kitti2015_disparity_alignment.py")]))
+          PY
