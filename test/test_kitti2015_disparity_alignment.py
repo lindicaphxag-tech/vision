@@ -47,6 +47,8 @@ def test_train_ignores_unlabeled_next_frame_and_keeps_exact_disparity_id(tmp_pat
         assert image_left.size == image_right.size == (4, 3)
         np.testing.assert_array_equal(disparity, np.full((1, 3, 4), 7.0))
         assert mask is None
+        image_left.close()
+        image_right.close()
 
 
 def test_kitti2015_testing_uses_only_benchmark_ten_frames(tmp_path):
@@ -56,6 +58,8 @@ def test_kitti2015_testing_uses_only_benchmark_ten_frames(tmp_path):
     image_left, image_right, disparity, mask = dataset[0]
     assert disparity is None and mask is None
     assert image_left.size == image_right.size == (4, 3)
+    image_left.close()
+    image_right.close()
 
 
 def test_right_camera_scene_shift_fails_instead_of_silent_pairing(tmp_path):
