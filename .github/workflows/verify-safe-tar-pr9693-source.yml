@@ -1,0 +1,32 @@
+name: Validate torchvision 9693 source-exact tar protections
+
+on:
+  push:
+    branches:
+      - validation/vision-9693-python311-source-20261118
+    paths:
+      - "ci/source_exact_tar_regressions.py"
+      - ".github/workflows/verify-safe-tar-pr9693-source.yml"
+      - "torchvision/datasets/utils.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-tar-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Test actual checked-out torchvision source AST, no wheel substitution
+        run: |
+          python --version
+          python -m unittest -v ci/source_exact_tar_regressions.py
